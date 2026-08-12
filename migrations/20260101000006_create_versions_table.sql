@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS versions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    resume_id INT NOT NULL,
+    version_name VARCHAR(100) NOT NULL,
+    snapshot_data JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE CASCADE
+);

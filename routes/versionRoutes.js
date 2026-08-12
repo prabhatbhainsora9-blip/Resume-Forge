@@ -3,6 +3,22 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
+const normalizeJsonValue = (value) => {
+    if (value === undefined || value === null) return value;
+    return typeof value === "string" ? value : JSON.stringify(value);
+};
+
+const parseJsonValue = (value) => {
+    if (value === undefined || value === null) return value;
+    if (typeof value === "string") {
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return value;
+        }
+    }
+    return value;
+};
 
 // Create a new version
 router.post("/", (req, res) => {
@@ -15,6 +31,8 @@ router.post("/", (req, res) => {
         });
     }
 
+    const serializedSnapshot = normalizeJsonValue(snapshot);
+
     const sql = `
         INSERT INTO versions
         (snapshot, label, documentId, createdAt, updatedAt)
@@ -23,7 +41,7 @@ router.post("/", (req, res) => {
 
     db.query(
         sql,
-        [snapshot, label || null, documentId],
+        [serializedSnapshot, label || null, documentId],
         (err, result) => {
             if (err) {
                 console.error("Error creating version:", err);
@@ -70,7 +88,10 @@ router.get("/", (req, res) => {
 
         res.json({
             success: true,
-            data: results
+            data: results.map((version) => ({
+                ...version,
+                snapshot: parseJsonValue(version.snapshot)
+            }))
         });
     });
 });
@@ -105,7 +126,10 @@ router.get("/document/:documentId", (req, res) => {
 
         res.json({
             success: true,
-            data: results
+            data: results.map((version) => ({
+                ...version,
+                snapshot: parseJsonValue(version.snapshot)
+            }))
         });
     });
 });
@@ -144,9 +168,15 @@ router.get("/:id", (req, res) => {
             });
         }
 
+        const version = results[0];
+
+        if (version) {
+            version.snapshot = parseJsonValue(version.snapshot);
+        }
+
         res.json({
             success: true,
-            data: results[0]
+            data: version
         });
     });
 });
@@ -164,6 +194,8 @@ router.put("/:id", (req, res) => {
         });
     }
 
+    const serializedSnapshot = snapshot === undefined ? undefined : normalizeJsonValue(snapshot);
+
     const sql = `
         UPDATE versions
         SET
@@ -176,7 +208,7 @@ router.put("/:id", (req, res) => {
     db.query(
         sql,
         [
-            snapshot ?? null,
+            serializedSnapshot ?? null,
             label ?? null,
             id
         ],

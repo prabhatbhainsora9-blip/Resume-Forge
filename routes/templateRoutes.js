@@ -3,6 +3,22 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
+const normalizeJsonValue = (value) => {
+    if (value === undefined || value === null) return value;
+    return typeof value === "string" ? value : JSON.stringify(value);
+};
+
+const parseJsonValue = (value) => {
+    if (value === undefined || value === null) return value;
+    if (typeof value === "string") {
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return value;
+        }
+    }
+    return value;
+};
 
 // Get all templates
 router.get("/", (req, res) => {
@@ -29,7 +45,10 @@ router.get("/", (req, res) => {
 
         res.json({
             success: true,
-            data: results
+            data: results.map((template) => ({
+                ...template,
+                config: parseJsonValue(template.config)
+            }))
         });
     });
 });
@@ -67,9 +86,15 @@ router.get("/:id", (req, res) => {
             });
         }
 
+        const template = results[0];
+
+        if (template) {
+            template.config = parseJsonValue(template.config);
+        }
+
         res.json({
             success: true,
-            data: results[0]
+            data: template
         });
     });
 });
@@ -86,6 +111,8 @@ router.post("/", (req, res) => {
         });
     }
 
+    const serializedConfig = normalizeJsonValue(config);
+
     const sql = `
         INSERT INTO templates
         (name, config, createdAt, updatedAt)
@@ -94,7 +121,7 @@ router.post("/", (req, res) => {
 
     db.query(
         sql,
-        [name, config || null],
+        [name, serializedConfig || null],
         (err, result) => {
             if (err) {
                 console.error("Error creating template:", err);
@@ -127,6 +154,8 @@ router.put("/:id", (req, res) => {
         });
     }
 
+    const serializedConfig = config === undefined ? undefined : normalizeJsonValue(config);
+
     const sql = `
         UPDATE templates
         SET
@@ -140,7 +169,7 @@ router.put("/:id", (req, res) => {
         sql,
         [
             name ?? null,
-            config ?? null,
+            serializedConfig ?? null,
             id
         ],
         (err, result) => {

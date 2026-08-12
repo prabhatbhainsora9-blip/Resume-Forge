@@ -46,7 +46,7 @@ app.use("/api/shares", shareRoutes);
 app.use("/api/exports", exportRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/versions", versionRoutes);
-const PORT = 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

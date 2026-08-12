@@ -3,6 +3,22 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
+const normalizeJsonValue = (value) => {
+    if (value === undefined || value === null) return value;
+    return typeof value === "string" ? value : JSON.stringify(value);
+};
+
+const parseJsonValue = (value) => {
+    if (value === undefined || value === null) return value;
+    if (typeof value === "string") {
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return value;
+        }
+    }
+    return value;
+};
 
 // Create an item inside a section
 router.post("/section/:sectionId", (req, res) => {
@@ -16,6 +32,8 @@ router.post("/section/:sectionId", (req, res) => {
         });
     }
 
+    const serializedContent = normalizeJsonValue(content);
+
     const sql = `
         INSERT INTO items
         (content, position, sectionId, createdAt, updatedAt)
@@ -24,7 +42,7 @@ router.post("/section/:sectionId", (req, res) => {
 
     db.query(
         sql,
-        [content, position || 0, sectionId],
+        [serializedContent, position || 0, sectionId],
         (err, result) => {
             if (err) {
                 console.error("Error creating item:", err);
@@ -74,7 +92,10 @@ router.get("/section/:sectionId", (req, res) => {
 
         res.json({
             success: true,
-            data: results
+            data: results.map((item) => ({
+                ...item,
+                content: parseJsonValue(item.content)
+            }))
         });
     });
 });
@@ -113,9 +134,15 @@ router.get("/:id", (req, res) => {
             });
         }
 
+        const item = results[0];
+
+        if (item) {
+            item.content = parseJsonValue(item.content);
+        }
+
         res.json({
             success: true,
-            data: results[0]
+            data: item
         });
     });
 });
@@ -133,6 +160,8 @@ router.put("/:id", (req, res) => {
         });
     }
 
+    const serializedContent = content === undefined ? undefined : normalizeJsonValue(content);
+
     const sql = `
         UPDATE items
         SET
@@ -145,7 +174,7 @@ router.put("/:id", (req, res) => {
     db.query(
         sql,
         [
-            content ?? null,
+            serializedContent ?? null,
             position ?? null,
             id
         ],
